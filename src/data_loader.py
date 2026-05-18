@@ -78,17 +78,38 @@ def load_price_data(
                     progress=False
                 )
             
+            # Ensure we have a DataFrame, not a Series
+            if isinstance(df, pd.Series):
+                df = df.to_frame()
+            
+            # Check if data is empty
+            if df.empty or len(df) == 0:
+                logger.warning(f"  ⚠ No data available for {symbol}")
+                continue
+            
+            # Flatten MultiIndex columns if present
+            if isinstance(df.columns, pd.MultiIndex):
+                # For single symbol downloads, take the first level
+                df.columns = df.columns.get_level_values(0)
+            
+            # Remove rows with zero or negative volume
+            if 'Volume' in df.columns:
+                df = df[df['Volume'] > 0]
+                if len(df) == 0:
+                    logger.warning(f"  [SKIP] No rows with positive volume for {symbol}")
+                    continue
+            
             # Ensure index is DatetimeIndex
             if not isinstance(df.index, pd.DatetimeIndex):
                 df.index = pd.to_datetime(df.index)
             
             # Validate data
             if not validate_price_data(df):
-                logger.warning(f"  ⚠ Data validation failed for {symbol}")
+                logger.warning(f"  [SKIP] Data validation failed for {symbol}")
                 continue
             
             data[symbol] = df
-            logger.info(f"  ✓ {symbol}: {len(df)} rows")
+            logger.info(f"[OK] {symbol}: {len(df)} rows")
         
         except Exception as e:
             logger.error(f"  ✗ Failed to download {symbol}: {e}")

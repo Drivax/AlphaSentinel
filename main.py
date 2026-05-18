@@ -82,7 +82,7 @@ def run_backtest(args):
         aligned_prices = align_multiasset_data(data)
         portfolio_value = compute_equal_weight_index(aligned_prices)
         
-        logger.info(f"✓ Loaded {len(portfolio_value)} trading days")
+        logger.info(f"[OK] Loaded {len(portfolio_value)} trading days")
         
         # 2. Train regime detector
         logger.info("\n[2/5] Training regime detection ensemble...")
@@ -99,7 +99,7 @@ def run_backtest(args):
         try:
             regime_detector.fit(features)
             regime_detector.save()
-            logger.info("✓ Regime detector trained and saved")
+            logger.info("[OK] Regime detector trained and saved")
         except Exception as e:
             logger.error(f"Regime detector training failed: {e}")
             return
@@ -108,7 +108,7 @@ def run_backtest(args):
         logger.info("\n[3/5] Predicting regimes for full period...")
         try:
             regime_predictions = regime_detector.predict_timeseries(features)
-            logger.info(f"✓ Predicted regimes for {len(regime_predictions)} dates")
+            logger.info(f"[OK] Predicted regimes for {len(regime_predictions)} dates")
         except Exception as e:
             logger.error(f"Regime prediction failed: {e}")
             return
@@ -144,7 +144,7 @@ def run_backtest(args):
             if not fold_results:
                 logger.warning("No fold results generated")
             else:
-                logger.info(f"✓ Walk-forward backtest complete ({len(fold_results)} folds)")
+                logger.info(f"[OK] Walk-forward backtest complete ({len(fold_results)} folds)")
         except Exception as e:
             logger.error(f"Walk-forward backtest failed: {e}")
             return
@@ -158,7 +158,7 @@ def run_backtest(args):
                     trades=backtester.trades,
                     num_paths=config.MONTE_CARLO_PATHS
                 )
-                logger.info("✓ Monte Carlo simulation complete")
+                logger.info("[OK] Monte Carlo simulation complete")
             else:
                 logger.warning("No trades to simulate")
         except Exception as e:

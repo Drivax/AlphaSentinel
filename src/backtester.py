@@ -379,9 +379,12 @@ class Backtester:
             logger.info(f"✓ Monte Carlo complete")
             logger.info(f"  Mean final equity: ${results['mean_final_equity']:,.0f}")
             logger.info(f"  5th percentile: ${results['percentile_5']:,.0f}")
-        logger.info(f"  95th percentile: ${results['percentile_95']:,.0f}")
-        
-        return results
+            logger.info(f"  95th percentile: ${results['percentile_95']:,.0f}")
+            
+            return results
+        except Exception as e:
+            logger.error(f"Monte Carlo simulation failed: {e}")
+            return {}
     
     def get_summary_report(self) -> str:
         """Generate comprehensive backtest summary report."""

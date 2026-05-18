@@ -13,8 +13,8 @@ from pathlib import Path
 from stable_baselines3 import SAC
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.callbacks import BaseCallback
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 
 import config
 from src.utils import logger
@@ -218,7 +218,7 @@ class RLAgent:
             # Train with error handling
             self.agent.learn(total_timesteps=total_timesteps)
             self.is_trained = True
-            logger.info("✓ SAC agent training complete")
+            logger.info("[OK] SAC agent training complete")
         except Exception as e:
             logger.error(f"SAC training failed: {e}")
             logger.warning("Continuing without trained RL agent")
@@ -255,14 +255,14 @@ class RLAgent:
         """Save trained agent."""
         if self.agent is not None:
             self.agent.save(path)
-            logger.info(f"✓ RL agent saved to {path}")
+            logger.info(f"[OK] RL agent saved to {path}")
     
     def load(self, path: str = config.RL_MODEL_PATH):
         """Load pre-trained agent."""
         try:
             self.agent = SAC.load(path)
             self.is_trained = True
-            logger.info(f"✓ RL agent loaded from {path}")
+            logger.info(f"[OK] RL agent loaded from {path}")
         except Exception as e:
             logger.warning(f"Failed to load RL agent: {e}")
 

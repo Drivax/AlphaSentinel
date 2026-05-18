@@ -7,6 +7,21 @@ import sys
 import logging
 from pathlib import Path
 
+# Import config at module level
+try:
+    from config import (
+        SYMBOLS, START_DATE, END_DATE, INITIAL_CAPITAL,
+        HMM_STATES, LSTM_LOOKBACK, VOLATILITY_WINDOW
+    )
+except ImportError:
+    SYMBOLS = ['CAC40.PA', 'GDAXI', 'STOXX50E.EU']
+    START_DATE = '2020-01-01'
+    END_DATE = '2024-12-31'
+    INITIAL_CAPITAL = 100000
+    HMM_STATES = 3
+    LSTM_LOOKBACK = 60
+    VOLATILITY_WINDOW = 20
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -22,7 +37,7 @@ def validate_imports():
     
     required_modules = [
         'numpy', 'pandas', 'tensorflow', 'sklearn',
-        'hmmlearn', 'stable_baselines3', 'gym', 'yfinance'
+        'hmmlearn', 'stable_baselines3', 'gymnasium', 'yfinance'
     ]
     
     failed_imports = []
@@ -49,8 +64,6 @@ def validate_config():
     logger.info("="*70)
     
     try:
-        from config import *
-        
         # Validate key parameters exist
         assert SYMBOLS, "SYMBOLS not defined"
         assert START_DATE, "START_DATE not defined"
@@ -79,7 +92,6 @@ def validate_data_loading():
     
     try:
         from src.data_loader import load_price_data, align_multiasset_data, compute_equal_weight_index
-        from config import SYMBOLS, START_DATE, END_DATE
         
         # Try loading data
         logger.info("Loading price data...")
@@ -126,7 +138,6 @@ def validate_regime_detection():
             compute_equal_weight_index, extract_regime_features
         )
         from src.regime_detector import RegimeDetector
-        from config import SYMBOLS, START_DATE, END_DATE, VOLATILITY_WINDOW
         import pandas as pd
         
         # Load and prepare data

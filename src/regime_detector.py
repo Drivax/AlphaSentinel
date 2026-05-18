@@ -169,7 +169,7 @@ class LSTMRegimeDetector:
             metrics=['accuracy']
         )
         
-        logger.info("✓ LSTM model built")
+        logger.info("[OK] LSTM model built")
     
     def fit(self, X: np.ndarray, y_regimes: np.ndarray, epochs: int = config.LSTM_EPOCHS):
         """

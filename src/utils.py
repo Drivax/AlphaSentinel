@@ -338,29 +338,37 @@ def validate_price_data(df: pd.DataFrame) -> bool:
     Returns:
         True if valid, False otherwise
     """
-    required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
-    
-    # Check columns exist
-    if not all(col in df.columns for col in required_cols):
-        logger.warning(f"Missing required columns. Found: {df.columns.tolist()}")
+    try:
+        # Handle Series case
+        if isinstance(df, pd.Series):
+            return False
+            
+        required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+        
+        # Check columns exist
+        if not all(col in df.columns for col in required_cols):
+            logger.warning(f"Missing required columns. Found: {list(df.columns)}")
+            return False
+        
+        # Check no NaN values
+        if df[required_cols].isnull().any().any():
+            logger.warning("Found NaN values in OHLCV data")
+            return False
+        
+        # Check data consistency (High >= Low, High >= Open/Close, Low <= Open/Close)
+        if (df['High'] < df['Low']).any():
+            logger.warning("High < Low found in data")
+            return False
+        
+        # Check volume > 0
+        if (df['Volume'] <= 0).any():
+            logger.warning("Zero or negative volume found in data")
+            return False
+        
+        return True
+    except Exception as e:
+        logger.warning(f"Data validation error: {e}")
         return False
-    
-    # Check no NaN values
-    if df[required_cols].isnull().any().any():
-        logger.warning("Found NaN values in OHLCV data")
-        return False
-    
-    # Check data consistency (High >= Low, High >= Open/Close, Low <= Open/Close)
-    if not (df['High'] >= df['Low']).all():
-        logger.warning("High < Low found in data")
-        return False
-    
-    # Check volume > 0
-    if not (df['Volume'] > 0).all():
-        logger.warning("Zero or negative volume found")
-        return False
-    
-    return True
 
 
 # ============================================================================
