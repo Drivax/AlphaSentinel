@@ -28,27 +28,34 @@ from src.backtester import Backtester
 # HELPER FUNCTIONS
 # ============================================================================
 
+def _safe_print(text: str):
+    """Print text with graceful fallback on limited terminal encodings."""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        print(text.encode("ascii", errors="ignore").decode("ascii"))
+
 def print_banner():
     """Print AlphaSentinel banner."""
     banner = """
-    ╔════════════════════════════════════════════════════════════════╗
-    ║                                                                ║
-    ║            🚀  ALPHA SENTINEL - REGIME DETECTION  🚀          ║
-    ║                                                                ║
-    ║    Professional Quantitative Trading System                   ║
-    ║    HMM + LSTM + Isolation Forest + SAC RL Agent               ║
-    ║                                                                ║
-    ║    Target Markets: CAC40, DAX, Euro Stoxx 50                  ║
-    ║    Deployment: Real-time Streamlit Dashboard                  ║
-    ║                                                                ║
-    ╚════════════════════════════════════════════════════════════════╝
+    +----------------------------------------------------------------+
+    |                                                                |
+    |            ALPHA SENTINEL - REGIME DETECTION                  |
+    |                                                                |
+    |    Professional Quantitative Trading System                    |
+    |    HMM + LSTM + Isolation Forest + SAC RL Agent               |
+    |                                                                |
+    |    Target Markets: CAC40, DAX, Euro Stoxx 50                  |
+    |    Deployment: Real-time Streamlit Dashboard                  |
+    |                                                                |
+    +----------------------------------------------------------------+
     """
-    print(banner)
+    _safe_print(banner)
 
 
 def print_config_summary():
     """Print configuration summary."""
-    print(config.get_config_summary())
+    _safe_print(config.get_config_summary())
 
 
 # ============================================================================
@@ -169,7 +176,13 @@ def run_backtest(args):
         logger.info("BACKTEST RESULTS SUMMARY")
         logger.info("=" * 70)
         
-        print(backtester.get_summary_report())
+        # Print with graceful fallback on encoding errors
+        try:
+            print(backtester.get_summary_report())
+        except UnicodeEncodeError:
+            # Fallback for limited terminal encodings
+            report = backtester.get_summary_report()
+            print(report.encode('ascii', errors='replace').decode('ascii'))
         
         # Save results
         try:
@@ -335,7 +348,7 @@ def main():
         print("\nFor full help: python main.py --help")
         
         # Run backtest by default
-        print("\n🔄 Running default backtest pipeline...\n")
+        _safe_print("\nRunning default backtest pipeline...\n")
         run_backtest(args)
         return
     

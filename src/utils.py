@@ -131,7 +131,14 @@ def calculate_max_drawdown(equity_curve: pd.Series) -> Tuple[float, str]:
     running_max = equity_curve.expanding().max()
     drawdown = (equity_curve - running_max) / running_max
     max_dd = drawdown.min()
-    recovery_date = equity_curve[drawdown == max_dd].index[0].strftime("%Y-%m-%d")
+
+    recovery_idx = equity_curve[drawdown == max_dd].index[0]
+    if hasattr(recovery_idx, "strftime"):
+        recovery_date = recovery_idx.strftime("%Y-%m-%d")
+    else:
+        # Fall back to string representation for non-datetime indices.
+        recovery_date = str(recovery_idx)
+
     return float(max_dd), recovery_date
 
 
@@ -412,20 +419,21 @@ def generate_performance_report(
 
 def format_metrics_table(metrics: Dict[str, float]) -> str:
     """Format metrics dictionary as a readable table."""
-    lines = ["\n╔════════════════════════════════════════════════════════╗"]
-    lines.append("║            PERFORMANCE METRICS SUMMARY                 ║")
-    lines.append("╠════════════════════════════════════════════════════════╣")
+    # Use ASCII characters for Windows terminal compatibility
+    lines = ["\n+======================================================+"]
+    lines.append("|            PERFORMANCE METRICS SUMMARY                |")  
+    lines.append("+======================================================+")
     
     for key, value in metrics.items():
         if key in ['annual_return', 'best_month', 'worst_month', 'monthly_volatility', 'max_drawdown']:
             formatted_key = key.replace('_', ' ').title()
-            lines.append(f"║ {formatted_key:<40} {value*100:>8.2f}%    ║")
+            lines.append(f"| {formatted_key:<40} {value*100:>8.2f}%   |")
         elif key in ['win_rate']:
             formatted_key = key.replace('_', ' ').title()
-            lines.append(f"║ {formatted_key:<40} {value:>8.2%}    ║")
+            lines.append(f"| {formatted_key:<40} {value:>8.2%}   |")
         else:
             formatted_key = key.replace('_', ' ').title()
-            lines.append(f"║ {formatted_key:<40} {value:>12.3f}   ║")
+            lines.append(f"| {formatted_key:<40} {value:>12.3f}  |")
     
-    lines.append("╚════════════════════════════════════════════════════════╝\n")
+    lines.append("+======================================================+\n")
     return "\n".join(lines)

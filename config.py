@@ -236,34 +236,34 @@ ENABLE_CACHING: bool = True  # Cache yfinance data
 def get_config_summary() -> str:
     """Return a formatted summary of key configuration parameters."""
     summary = f"""
-    ╔══════════════════════════════════════════════════════╗
-    ║         AlphaSentinel Configuration Summary         ║
-    ╚══════════════════════════════════════════════════════╝
+    ============================================================
+                AlphaSentinel Configuration Summary
+    ============================================================
     
-    📊 DATA:
+    DATA:
        Symbols: {', '.join([SYMBOL_NAMES.get(s, s) for s in SYMBOLS])}
        Period: {START_DATE} to {END_DATE}
     
-    🔍 REGIME DETECTION:
+    REGIME DETECTION:
        HMM States: {HMM_STATES}
        LSTM Lookback: {LSTM_LOOKBACK} days
        Anomaly Detection: {'Enabled' if ENABLE_ANOMALY_DETECTION else 'Disabled'}
     
-    🤖 RL AGENT (SAC):
+    RL AGENT (SAC):
        Action Range: [{RL_ACTION_MIN}, {RL_ACTION_MAX}]
        Learning Rate: {RL_LEARNING_RATE}
        Batch Size: {RL_BATCH_SIZE}
     
-    💰 RISK MANAGEMENT:
+    RISK MANAGEMENT:
        Risk Per Trade: {RISK_PER_TRADE*100:.1f}%
        Max Gross Exposure: {MAX_GROSS_EXPOSURE*100:.0f}%
        Transaction Cost: {TRANSACTION_COST_BPS:.1f} bps
     
-    📈 BACKTESTING:
+    BACKTESTING:
        Walk-Forward Train: {WALK_FORWARD_TRAIN_YEARS} years
        Walk-Forward Test: {WALK_FORWARD_TEST_MONTHS} months
        Monte Carlo Paths: {MONTE_CARLO_PATHS:,}
     
-    💵 INITIAL CAPITAL: ${INITIAL_CAPITAL:,.0f}
+    INITIAL CAPITAL: ${INITIAL_CAPITAL:,.0f}
     """
     return summary
