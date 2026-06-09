@@ -20,7 +20,7 @@ from src.data_loader import (
     create_walk_forward_splits
 )
 from src.regime_detector import RegimeDetector
-from src.rl_agent import RLAgent, TradingEnvironment
+from src.rl_agent import RLAgent, TradingEnvironment, position_to_signal
 from src.signal_generator import SignalGenerator, PortfolioManager
 from src.backtester import Backtester
 
@@ -129,18 +129,90 @@ def run_backtest(args):
         train_periods = int(config.WALK_FORWARD_TRAIN_YEARS * 252)
         test_periods = int(config.WALK_FORWARD_TEST_MONTHS / 12 * 252)
         
-        # Simple strategy: buy in calm regimes, neutral otherwise
-        def simple_strategy(regime, price):
+        # Default baseline strategy: buy in calm regimes, neutral otherwise
+        def simple_strategy(regime, price, idx=None):
             if regime == 0:  # Calm trending
                 return "LONG"
             elif regime == 1:  # Volatile
                 return "NEUTRAL"
             else:  # Crisis
                 return "NEUTRAL"
+
+        strategy_func = simple_strategy
+
+        # Optional feature: RL-driven strategy for backtests
+        if args.strategy_mode == 'rl':
+            logger.info("Training RL strategy for backtest mode...")
+
+            try:
+                regime_probs = regime_predictions['probabilities'].apply(
+                    lambda p: np.array(p, dtype=np.float32)
+                )
+                regime_matrix = np.vstack(regime_probs.values)
+
+                price_for_rl = portfolio_value.loc[regime_predictions.index]
+                price_array = price_for_rl.values.astype(np.float64)
+
+                env = TradingEnvironment(
+                    price_data=price_array,
+                    regime_data=regime_matrix,
+                    lookback=min(20, max(5, len(price_array) // 10))
+                )
+
+                rl_agent = RLAgent()
+                rl_agent.train(
+                    env,
+                    total_timesteps=config.RL_TOTAL_TIMESTEPS,
+                    learning_rate=config.RL_LEARNING_RATE
+                )
+
+                if rl_agent.is_trained:
+                    logger.info("[OK] RL strategy active for backtest")
+
+                    def rl_strategy(regime, price, idx=None):
+                        # Backtester can provide idx; if missing, fall back to baseline.
+                        if idx is None:
+                            return simple_strategy(regime, price)
+
+                        if idx < 0 or idx >= len(portfolio_value):
+                            return config.SIGNAL_NEUTRAL
+
+                        date_idx = portfolio_value.index[idx]
+                        if date_idx not in regime_predictions.index or date_idx not in features.index:
+                            return config.SIGNAL_NEUTRAL
+
+                        feature_row = features.loc[date_idx]
+                        regime_row = regime_predictions.loc[date_idx]
+
+                        regime_prob_vec = np.array(
+                            regime_row.get('probabilities', [0.33, 0.33, 0.33]),
+                            dtype=np.float32
+                        )
+
+                        # Match TradingEnvironment observation space: [ret, vol, p0, p1, p2, pos, cash]
+                        state = np.array([
+                            float(feature_row.get('returns', 0.0)),
+                            float(feature_row.get('volatility', 0.0)),
+                            float(regime_prob_vec[0]) if len(regime_prob_vec) > 0 else 0.33,
+                            float(regime_prob_vec[1]) if len(regime_prob_vec) > 1 else 0.33,
+                            float(regime_prob_vec[2]) if len(regime_prob_vec) > 2 else 0.33,
+                            0.0,
+                            1.0,
+                        ], dtype=np.float32)
+
+                        action, _ = rl_agent.predict(state)
+                        position = float(action[0]) if action is not None else 0.0
+                        return position_to_signal(position)
+
+                    strategy_func = rl_strategy
+                else:
+                    logger.warning("RL training did not produce a trained agent. Falling back to simple strategy.")
+            except Exception as e:
+                logger.warning(f"RL strategy setup failed: {e}. Falling back to simple strategy.")
         
         try:
             fold_results = backtester.walk_forward_backtest(
-                strategy_func=simple_strategy,
+                strategy_func=strategy_func,
                 price_data=portfolio_value,
                 regime_data=regime_predictions,
                 train_periods=train_periods,
@@ -333,6 +405,14 @@ def main():
         '--verbose',
         action='store_true',
         help='Verbose logging output'
+    )
+
+    parser.add_argument(
+        '--strategy-mode',
+        type=str,
+        choices=['simple', 'rl'],
+        default='simple',
+        help='Backtest strategy mode: simple baseline or RL-driven'
     )
     
     args = parser.parse_args()

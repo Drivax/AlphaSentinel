@@ -89,8 +89,11 @@ class Backtester:
             else:
                 regime = 0
             
-            # Get signal from strategy
-            signal = strategy_func(regime, current_price)
+            # Get signal from strategy. New feature: allow optional idx-aware strategies.
+            try:
+                signal = strategy_func(regime, current_price, i)
+            except TypeError:
+                signal = strategy_func(regime, current_price)
             
             # Process signal
             new_position = self._signal_to_position(signal)
