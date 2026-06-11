@@ -271,6 +271,9 @@ def extract_regime_features(
         - 20-day skewness
         - 20-day kurtosis
         - Momentum indicator
+        - RSI (14-day Relative Strength Index)
+        - MACD histogram (12/26/9 EMA-based)
+        - Bollinger Band %B (position within bands)
     
     Args:
         price_df: DataFrame with 'Close' column
@@ -280,9 +283,10 @@ def extract_regime_features(
         DataFrame with features
     """
     features = pd.DataFrame(index=price_df.index)
-    
+    close = price_df['Close']
+
     # Log returns
-    features['returns'] = np.log(price_df['Close'] / price_df['Close'].shift(1))
+    features['returns'] = np.log(close / close.shift(1))
     
     # Realized volatility
     features['volatility'] = features['returns'].rolling(lookback).std()
@@ -294,12 +298,37 @@ def extract_regime_features(
     features['kurtosis'] = features['returns'].rolling(lookback).kurt()
     
     # Momentum (20-day return)
-    features['momentum'] = price_df['Close'].pct_change(lookback)
-    
+    features['momentum'] = close.pct_change(lookback)
+
+    # --- RSI (14-day) ---
+    rsi_period = 14
+    delta = close.diff()
+    gain = delta.clip(lower=0).rolling(rsi_period).mean()
+    loss = (-delta.clip(upper=0)).rolling(rsi_period).mean()
+    rs = gain / loss.replace(0, np.nan)
+    features['rsi'] = (100 - (100 / (1 + rs))) / 100  # Normalised to [0, 1]
+
+    # --- MACD histogram (12/26/9) ---
+    ema_fast = close.ewm(span=12, adjust=False).mean()
+    ema_slow = close.ewm(span=26, adjust=False).mean()
+    macd_line = ema_fast - ema_slow
+    signal_line = macd_line.ewm(span=9, adjust=False).mean()
+    macd_hist = macd_line - signal_line
+    # Normalise by price so it is scale-invariant
+    features['macd_hist'] = macd_hist / close.replace(0, np.nan)
+
+    # --- Bollinger Band %B (20-day, 2σ) ---
+    bb_mid = close.rolling(lookback).mean()
+    bb_std = close.rolling(lookback).std()
+    bb_upper = bb_mid + 2 * bb_std
+    bb_lower = bb_mid - 2 * bb_std
+    band_width = (bb_upper - bb_lower).replace(0, np.nan)
+    features['bb_pct_b'] = (close - bb_lower) / band_width  # 0 = lower band, 1 = upper band
+
     # Drop NaN rows
     features = features.dropna()
     
-    logger.info(f"✓ Extracted {len(features)} regime feature rows")
+    logger.info(f"✓ Extracted {len(features)} regime feature rows with {len(features.columns)} features")
     
     return features
 
@@ -318,7 +347,8 @@ def create_hmm_sequences(
     Returns:
         Array of shape (n_samples, n_features) for HMM
     """
-    feature_cols = ['returns', 'volatility', 'skewness', 'kurtosis', 'momentum']
+    feature_cols = ['returns', 'volatility', 'skewness', 'kurtosis', 'momentum',
+                    'rsi', 'macd_hist', 'bb_pct_b']
     available_cols = [col for col in feature_cols if col in features.columns]
     
     X = features[available_cols].values
@@ -343,7 +373,8 @@ def create_lstm_sequences(
     Returns:
         Tuple of (X_sequences, y_targets) for LSTM training
     """
-    feature_cols = ['returns', 'volatility', 'skewness', 'kurtosis', 'momentum']
+    feature_cols = ['returns', 'volatility', 'skewness', 'kurtosis', 'momentum',
+                    'rsi', 'macd_hist', 'bb_pct_b']
     available_cols = [col for col in feature_cols if col in features.columns]
     
     data = features[available_cols].values
